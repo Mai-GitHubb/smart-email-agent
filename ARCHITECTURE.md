@@ -104,11 +104,42 @@ The Smart Email Agent is a Streamlit-based application that uses LLM (Large Lang
 
 **Methods**:
 - `authenticate()`: OAuth 2.0 authentication
-- `fetch_emails()`: Fetch emails from Gmail
+- `fetch_emails()`: Fetch emails from Gmail (up to 100 emails)
 - `_fetch_email_details()`: Get detailed email information
-- `_extract_body()`: Extract email body from Gmail payload
+- `_extract_body()`: Extract email body from Gmail payload (handles nested multipart, HTML conversion)
 
 **Security**: Uses OAuth 2.0, read-only access, tokens stored locally.
+
+#### `google_calendar_client.py`
+**Purpose**: Wraps Google Calendar API for syncing tasks and events.
+
+**Key Class**: `GoogleCalendarClient`
+
+**Methods**:
+- `authenticate()`: OAuth 2.0 authentication with Calendar scopes
+- `add_task_as_event()`: Add a task as an all-day event to Google Calendar
+- `add_event()`: Add an event to Google Calendar with time and location
+
+**Integration**: Allows users to sync extracted tasks and confirmed events to their Google Calendar.
+
+#### `date_utils.py`
+**Purpose**: Date parsing utilities for handling various date formats.
+
+**Key Functions**:
+- `parse_date()`: Parse date strings in multiple formats (ISO, "Fri, 28 Nov, 2025", etc.)
+- `normalize_date()`: Normalize date string to YYYY-MM-DD format
+
+**Features**: Handles various date formats returned by LLMs, with fallback to dateutil if available.
+
+#### `prompt_storage.py`
+**Purpose**: Handles saving and loading prompts to/from JSON file.
+
+**Key Functions**:
+- `load_prompts()`: Load prompts from `data/prompts.json` or return defaults
+- `save_prompts()`: Save prompts to `data/prompts.json`
+- `get_default_prompts()`: Get default prompt templates
+
+**Persistence**: Ensures user-edited prompts persist across application sessions.
 
 #### `mock_data_loader.py`
 **Purpose**: Loads sample emails for demo/testing.
@@ -205,9 +236,36 @@ The Smart Email Agent is a Streamlit-based application that uses LLM (Large Lang
 **Purpose**: Settings and configuration.
 
 **Key Functions**:
-- `render_settings()`: Main settings view
+- `render_settings()`: Main settings view with tabs
 - `render_mode_selection()`: Switch between Mock/Gmail modes
-- `render_prompt_brain()`: Customize LLM prompts
+- `render_prompt_brain()`: Customize LLM prompts (all prompts editable and savable)
+
+#### `email_agent_view.py`
+**Purpose**: Dedicated Email Agent chat interface.
+
+**Key Function**: `render_email_agent()`
+
+**Features**:
+- Email selector dropdown
+- Selected email info display
+- Example query buttons
+- Chat interface for asking questions about specific emails
+- Uses stored prompts for consistent behavior
+- Generates draft replies when requested
+
+#### `drafts_view.py`
+**Purpose**: Draft management (new emails and replies).
+
+**Key Functions**:
+- `render_drafts()`: Main drafts view with tabs
+- `render_saved_drafts()`: List and manage saved drafts
+- `render_new_draft()`: Create new drafts or replies
+
+**Features**:
+- Generate new email drafts
+- Generate replies to existing emails
+- Edit and save drafts
+- Metadata and suggested follow-ups for each draft
 
 ### Main Application (`app.py`)
 
@@ -336,10 +394,12 @@ The Smart Email Agent is a Streamlit-based application that uses LLM (Large Lang
 
 1. **Database Storage**: Replace in-memory state with SQLite/PostgreSQL
 2. **Multi-Provider Support**: Add Anthropic, Cohere, etc.
-3. **Advanced Calendar**: Google Calendar integration
-4. **Email Sending**: Optional send capability (with confirmation)
-5. **Search**: Full-text search across emails
-6. **Analytics**: Email statistics and trends
-7. **Multi-Account**: Support multiple Gmail accounts
-8. **Offline Mode**: Cache LLM responses for offline use
+3. **Email Sending**: Optional send capability (with confirmation)
+4. **Search**: Full-text search across emails
+5. **Analytics**: Email statistics and trends
+6. **Multi-Account**: Support multiple Gmail accounts
+7. **Offline Mode**: Cache LLM responses for offline use
+8. **Email Threading**: Better thread view and management
+9. **Advanced Filtering**: More sophisticated email filtering options
+10. **Export Functionality**: Export drafts, tasks, events to various formats
 

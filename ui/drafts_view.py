@@ -11,7 +11,8 @@ import uuid
 
 def render_drafts():
     """Render the drafts management view."""
-    st.header("✍️ Email Drafts")
+    st.header("Email Drafts")
+    st.caption("Create, edit, and manage your email drafts")
     
     # Tabs for different draft types
     tab1, tab2 = st.tabs(["Saved Drafts", "Create New Draft"])
@@ -163,10 +164,33 @@ Only return the JSON array."""
                 import json
                 if followup_response.strip().startswith("```"):
                     followup_response = followup_response.strip().strip("```json").strip("```").strip()
-                suggested_followups = json.loads(followup_response)
-                if not isinstance(suggested_followups, list):
+                parsed = json.loads(followup_response)
+                
+                # Handle different response formats
+                if isinstance(parsed, list):
+                    # Extract strings from list (handle both string lists and dict lists)
                     suggested_followups = []
-            except:
+                    for item in parsed:
+                        if isinstance(item, str):
+                            suggested_followups.append(item)
+                        elif isinstance(item, dict):
+                            # If it's a dict, try to extract the suggestion text
+                            if "suggestion" in item:
+                                suggested_followups.append(str(item["suggestion"]))
+                            elif "text" in item:
+                                suggested_followups.append(str(item["text"]))
+                            elif "followup" in item:
+                                suggested_followups.append(str(item["followup"]))
+                            else:
+                                # Take first string value
+                                for val in item.values():
+                                    if isinstance(val, str):
+                                        suggested_followups.append(val)
+                                        break
+                else:
+                    suggested_followups = []
+            except Exception as e:
+                print(f"Error parsing follow-ups: {e}")
                 suggested_followups = []
             
             # Create draft

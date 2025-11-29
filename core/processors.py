@@ -71,14 +71,27 @@ class EmailProcessor:
         """
         Process an email comprehensively.
         
+        This is the main processing function that orchestrates all LLM-powered operations:
+        1. Categorization: Assigns category (Work, Personal, To-Do, etc.) and priority
+        2. Task Extraction: Extracts actionable tasks with due dates
+        3. Event Extraction: Extracts meetings and deadlines
+        
+        All operations use prompts from the Prompt Brain (st.session_state.prompts),
+        making the system fully prompt-driven.
+        
         Args:
             email: Email to process
-            categorize: Whether to categorize
-            extract_tasks_flag: Whether to extract tasks
-            extract_events_flag: Whether to extract events
+            categorize: Whether to categorize the email
+            extract_tasks_flag: Whether to extract tasks from the email
+            extract_events_flag: Whether to extract events/deadlines from the email
             
         Returns:
-            Dictionary with processing results
+            Dictionary with processing results containing:
+            - email_id: ID of processed email
+            - category: Assigned category (if categorized)
+            - priority: Assigned priority (if categorized)
+            - tasks: List of extracted Task objects
+            - events: List of extracted Event objects
         """
         results = {
             'email_id': email.id,
@@ -88,27 +101,37 @@ class EmailProcessor:
             'events': []
         }
         
+        # Step 1: Categorize email using LLM
+        # Uses categorization prompt from Prompt Brain
         if categorize:
             try:
                 category_result = self.categorize_email(email)
+                # Update email object with category and priority
                 email.category = category_result.category
                 email.priority = category_result.priority
                 results['category'] = category_result.category
                 results['priority'] = category_result.priority
             except Exception as e:
+                # Graceful error handling - continue processing even if categorization fails
                 print(f"Error categorizing email {email.id}: {e}")
         
+        # Step 2: Extract tasks from email using LLM
+        # Uses task extraction prompt from Prompt Brain
         if extract_tasks_flag:
             try:
                 tasks = self.extract_tasks(email)
                 results['tasks'] = tasks
+                # Note: Tasks should be added to state using add_task() after processing
             except Exception as e:
                 print(f"Error extracting tasks from email {email.id}: {e}")
         
+        # Step 3: Extract events/deadlines from email using LLM
+        # Uses event extraction prompt from Prompt Brain
         if extract_events_flag:
             try:
                 events = self.extract_events(email)
                 results['events'] = events
+                # Note: Events should be added to state using add_event() after processing
             except Exception as e:
                 print(f"Error extracting events from email {email.id}: {e}")
         

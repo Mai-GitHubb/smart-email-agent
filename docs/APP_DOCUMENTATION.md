@@ -26,19 +26,24 @@ This document provides detailed documentation for all modules, classes, and func
 
 ### Variables
 
-- `LLM_PROVIDER`: LLM provider name (default: "openai")
-- `OPENAI_API_KEY`: OpenAI API key from environment
-- `OPENAI_MODEL`: Model name to use (default: "gpt-4-turbo-preview")
+- `LLM_PROVIDER`: LLM provider name (default: "ollama")
+- `LLM_MODEL`: Model name to use (default: "llama2:latest")
+- `OLLAMA_BASE_URL`: Ollama API base URL (default: "http://localhost:11434")
+- `OPENAI_API_KEY`: OpenAI API key from environment (optional)
+- `OPENAI_MODEL`: OpenAI model name (default: "gpt-4-turbo-preview")
 - `GMAIL_CREDENTIALS_FILE`: Path to Gmail OAuth credentials
 - `GMAIL_TOKEN_FILE`: Path to store Gmail OAuth token
 - `GMAIL_SCOPES`: Gmail API scopes (read-only)
+- `GOOGLE_CALENDAR_CREDENTIALS_FILE`: Path to Google Calendar OAuth credentials
+- `GOOGLE_CALENDAR_TOKEN_FILE`: Path to store Google Calendar OAuth token
+- `GOOGLE_CALENDAR_SCOPES`: Google Calendar API scopes
 - `APP_TITLE`: Application title
 - `APP_ICON`: Application icon emoji
 - `DEFAULT_MODE`: Default mode ("mock" or "gmail")
 - `DATA_DIR`: Data directory path
 - `MOCK_INBOX_FILE`: Path to mock inbox JSON file
 - `ITEMS_PER_PAGE`: Pagination size
-- `MAX_EMAILS_TO_FETCH`: Maximum emails to fetch from Gmail
+- `MAX_EMAILS_TO_FETCH`: Maximum emails to fetch from Gmail (default: 100)
 
 ---
 
@@ -107,6 +112,21 @@ Represents a reminder linked to an email.
 - `note: str` - Reminder note
 - `status: str` - Reminder status ("pending", "done")
 
+#### `Draft`
+Represents an email draft (reply or new email).
+
+**Fields**:
+- `id: str` - Unique draft identifier
+- `subject: str` - Draft subject
+- `body: str` - Draft body text
+- `recipient: Optional[str]` - Recipient email address
+- `reply_to_email_id: Optional[str]` - ID of email being replied to (if applicable)
+- `tone: str` - Draft tone (Formal, Friendly, etc.)
+- `created_at: datetime` - Creation timestamp
+- `metadata: Dict[str, Any]` - JSON metadata (category, priority, type)
+- `suggested_followups: List[str]` - AI-generated follow-up suggestions
+- `status: str` - Draft status ("draft", "saved", "sent")
+
 #### `CategoryResult`
 Result of email categorization.
 
@@ -126,15 +146,18 @@ Result of email categorization.
 
 ### Class: `LLMClient`
 
-#### `__init__(provider: str = None, api_key: str = None, model: str = None)`
+#### `__init__(provider: str = None, api_key: str = None, model: str = None, base_url: str = None)`
 Initialize LLM client.
 
 **Parameters**:
-- `provider`: LLM provider name (defaults to config)
-- `api_key`: API key (defaults to config)
-- `model`: Model name (defaults to config)
+- `provider`: LLM provider name (defaults to config, supports "ollama" or "openai")
+- `api_key`: API key for OpenAI (defaults to config, not needed for Ollama)
+- `model`: Model name (defaults to config, e.g., "llama2:latest" for Ollama)
+- `base_url`: Base URL for Ollama (defaults to config, e.g., "http://localhost:11434")
 
-**Raises**: `ValueError` if provider unsupported or API key missing
+**Raises**: `ValueError` if provider unsupported or API key missing (for OpenAI)
+
+**Note**: For Ollama, tests connection and verifies model availability on initialization.
 
 #### `_call_llm(prompt: str, temperature: float = 0.3) -> str`
 Make a call to the LLM.
@@ -225,10 +248,24 @@ Process natural language query about inbox.
 
 **Parameters**:
 - `query`: User's query
-- `context`: Inbox context dictionary
+- `context`: Inbox context dictionary (includes emails_text, tasks_text, events_text)
 - `prompt_template`: Prompt template
 
 **Returns**: Response text
+
+**Note**: Reads all emails, tasks, and events to provide comprehensive answers.
+
+#### `generate_new_draft(user_requirements: str, recipient: str, subject: str, tone: str, prompt_template: str) -> str`
+Generate a new email draft (not a reply).
+
+**Parameters**:
+- `user_requirements`: What the email should say
+- `recipient`: Recipient email address
+- `subject`: Email subject
+- `tone`: Desired tone
+- `prompt_template`: Prompt template
+
+**Returns**: Generated draft text
 
 ---
 
@@ -361,7 +398,13 @@ Extract email body from Gmail payload.
 **Parameters**:
 - `payload`: Gmail message payload
 
-**Returns**: Email body text
+**Returns**: Email body text (prefers plain text, falls back to HTML with tag stripping)
+
+**Features**:
+- Handles nested multipart messages recursively
+- Prefers text/plain over text/html
+- Strips HTML tags and decodes entities when only HTML is available
+- Handles single-part and multipart messages
 
 #### `is_authenticated() -> bool`
 Check if client is authenticated.
@@ -393,7 +436,7 @@ Generate sample emails for demo.
 
 **Returns**: List of sample `Email` objects
 
-**Note**: Internal function, generates 15 sample emails
+**Note**: Internal function, generates 15 sample emails. The actual mock inbox JSON file contains 25 diverse emails.
 
 ---
 
@@ -591,11 +634,13 @@ Render the main dashboard view.
 
 **Displays**:
 - Statistics row (unread, tasks, events, due soon)
-- High priority unread emails
-- Upcoming deadlines
-- Next meetings
-- Top tasks
-- Quick actions
+- 2x2 grid layout with styled sections:
+  - High priority unread emails (left, top)
+  - Upcoming deadlines (left, bottom)
+  - Next meetings (right, top)
+  - Top tasks (right, bottom)
+- Each section has borders, shadows, and proper spacing
+- Quick actions to navigate to other pages
 
 ### Inbox View (`ui/inbox_view.py`)
 
@@ -609,9 +654,10 @@ Render detailed view of a single email.
 - `email_id`: Email identifier
 
 **Features**:
-- Email header and body
+- Email header and body (clearly visible with markdown formatting)
 - Attachments list
-- Tabs: Reply, Explain, Set Reminder, Sender Context
+- Tabs: Email Agent, Reply, Explain, Set Reminder, Sender Context
+- Email Agent tab: Ask questions about the specific email
 
 #### `render_reply_tab(email: Email)`
 Render reply generation tab.
@@ -628,13 +674,67 @@ Render sender context tab.
 ### Calendar View (`ui/calendar_view.py`)
 
 #### `render_calendar()`
-Render the calendar view with tabs.
+Render the calendar view with tabs and Google Calendar sync options.
 
 #### `render_calendar_view()`
-Render calendar month view.
+Render calendar month grid view.
+
+**Features**:
+- Month/year selector
+- Visual grid with tasks and events displayed on their dates
+- Todo calendar style layout
+- Detail view for selected date
+- Uses `date_utils.parse_date()` for robust date parsing
 
 #### `render_suggested_events()`
 Render suggested events management.
+
+**Features**:
+- List all suggested events from email extraction
+- Confirm events (automatically syncs to Google Calendar)
+- Edit events (with safe date parsing)
+- Ignore events
+
+#### `_sync_tasks_to_google_calendar()`
+Sync all tasks with due dates to Google Calendar as all-day events.
+
+### Email Agent View (`ui/email_agent_view.py`)
+
+#### `render_email_agent()`
+Render the Email Agent chat interface.
+
+**Features**:
+- Email selector dropdown
+- Selected email info display
+- Example query buttons
+- Chat interface for asking questions about specific emails
+- Uses stored prompts for consistent behavior
+- Generates draft replies when requested
+- Shows extracted tasks and events for context
+
+### Drafts View (`ui/drafts_view.py`)
+
+#### `render_drafts()`
+Render the drafts management view with tabs.
+
+#### `render_saved_drafts()`
+List and manage saved drafts.
+
+**Features**:
+- Display all saved drafts
+- Edit drafts
+- View metadata and suggested follow-ups
+
+#### `render_new_draft()`
+Create new email drafts or replies.
+
+**Features**:
+- Generate new email drafts
+- Generate replies to existing emails
+- Tone selection
+- User requirements input
+- Automatic suggested follow-ups generation
+- Metadata extraction (category, priority, type)
 
 ### Tasks View (`ui/tasks_view.py`)
 
@@ -671,7 +771,12 @@ Render prompt customization interface.
 ### Layout (`ui/layout.py`)
 
 #### `render_sidebar()`
-Render the sidebar with navigation and chat interface.
+Render the sidebar with navigation, quick stats, and mode indicator.
+
+**Features**:
+- Navigation menu (Dashboard, Inbox, Email Agent, Calendar, Tasks, Files, Drafts, Settings)
+- Quick stats (unread emails, tasks, events)
+- Mode indicator (Mock or Gmail API)
 
 ---
 
@@ -694,9 +799,11 @@ Main application entry point.
 **Views**:
 - `dashboard`: Dashboard view
 - `inbox`: Inbox view
+- `email_agent`: Email Agent chat interface
 - `calendar`: Calendar view
 - `tasks`: Tasks view
 - `files`: Files view
+- `drafts`: Drafts management view
 - `settings`: Settings view
 
 ---

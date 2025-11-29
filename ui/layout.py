@@ -7,13 +7,14 @@ import streamlit as st
 def render_sidebar():
     """Render the sidebar navigation."""
     with st.sidebar:
-        st.title("📧 Smart Email Agent")
+        st.title("Smart Email Agent")
         st.divider()
         
         # Navigation
         pages = {
             "Dashboard": "dashboard",
             "Inbox": "inbox",
+            "Email Agent": "email_agent",
             "Calendar": "calendar",
             "Tasks": "tasks",
             "Files": "files",
@@ -43,39 +44,8 @@ def render_sidebar():
         
         st.divider()
         
-        # Chat with inbox
-        st.subheader("💬 Ask Your Inbox")
-        query = st.text_input("Ask a question about your inbox", key="inbox_query_input")
-        
-        if st.button("Ask", key="ask_button"):
-            if query and st.session_state.emails:
-                try:
-                    from core.llm_client import LLMClient
-                    
-                    # Build context
-                    context = {
-                        "total_emails": len(st.session_state.emails),
-                        "unread_count": len([e for e in st.session_state.emails if not e.is_read]),
-                        "categories": ", ".join(set([e.category for e in st.session_state.emails if e.category])),
-                        "tasks_summary": f"{len(st.session_state.tasks)} tasks",
-                        "events_summary": f"{len(st.session_state.events)} events"
-                    }
-                    
-                    llm_client = LLMClient()
-                    prompt = st.session_state.prompts.get('inbox_query', 
-                                                               "Answer the user's question about their inbox.")
-                    
-                    with st.spinner("Thinking..."):
-                        response = llm_client.process_inbox_query(query, context, prompt)
-                    
-                    st.info(response)
-                except Exception as e:
-                    st.error(f"Error processing query: {e}")
-        
-        st.divider()
-        
         # Quick stats
-        st.subheader("📊 Quick Stats")
+        st.markdown("### Quick Stats")
         unread = len([e for e in st.session_state.emails if not e.is_read])
         st.metric("Unread", unread)
         
@@ -89,6 +59,6 @@ def render_sidebar():
         st.divider()
         
         # Mode indicator
-        mode_icon = "📧" if st.session_state.mode == "mock" else "🔐"
-        st.caption(f"{mode_icon} Mode: {st.session_state.mode.upper()}")
+        mode_text = "Mock" if st.session_state.mode == "mock" else "Gmail API"
+        st.caption(f"Mode: {mode_text}")
 

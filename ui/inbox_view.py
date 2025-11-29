@@ -13,10 +13,12 @@ import config
 
 def render_inbox():
     """Render the inbox view."""
-    st.header("📧 Inbox")
+    st.header("Inbox")
     
-    # Filters
-    col1, col2, col3 = st.columns(3)
+    # Section: Filters
+    with st.container():
+        st.markdown("### Filter Emails")
+        col1, col2, col3 = st.columns(3)
     
     with col1:
         filter_category = st.selectbox(
@@ -53,11 +55,19 @@ def render_inbox():
     # Sort by timestamp (newest first)
     filtered_emails.sort(key=lambda e: e.timestamp, reverse=True)
     
-    # Email list
+    # Email detail view - show at top if email is selected
+    if st.session_state.selected_email_id:
+        render_email_detail(st.session_state.selected_email_id)
+        st.divider()
+        st.subheader("📧 All Emails")
+    
+    st.divider()
+    
+    # Section: Email List
     st.subheader(f"Emails ({len(filtered_emails)})")
     
     if not filtered_emails:
-        st.info("No emails to display.")
+        st.info("No emails to display. Load an inbox to get started.")
         return
     
     # Display emails
@@ -82,10 +92,6 @@ def render_inbox():
                     st.rerun()
             
             st.divider()
-    
-    # Email detail view
-    if st.session_state.selected_email_id:
-        render_email_detail(st.session_state.selected_email_id)
 
 
 def render_email_detail(email_id: str):
@@ -93,10 +99,10 @@ def render_email_detail(email_id: str):
     email = get_email(email_id)
     if not email:
         st.error("Email not found.")
+        st.session_state.selected_email_id = None
         return
     
-    st.divider()
-    st.header("📧 Email Details")
+    st.header("Email Details")
     
     # Email header
     col1, col2 = st.columns([3, 1])
@@ -115,35 +121,160 @@ def render_email_detail(email_id: str):
             st.session_state.selected_email_id = None
             st.rerun()
     
-    # Email body
-    st.subheader("Body")
-    st.text_area("", email.body, height=200, disabled=True, key=f"body_{email_id}")
+    # Email body - make it clearly visible
+    st.subheader("Email Body")
+    
+    if email.body and email.body.strip():
+        st.markdown("---")
+        # Show body in a readable format
+        # Use st.text for plain text to preserve formatting
+        st.text(email.body)
+        st.markdown("---")
+        
+        # Also provide text area for copying
+        with st.expander("View/Copy Raw Text"):
+            st.text_area("", email.body, height=200, key=f"body_text_{email_id}")
+    else:
+        st.warning("Email body is empty or could not be extracted.")
+        st.info("This may happen if the email has no text content or if there was an error extracting the body from Gmail API.")
     
     # Attachments
     if email.has_attachments:
-        st.subheader("📎 Attachments")
+        st.subheader("Attachments")
         for att in email.attachments:
             st.markdown(f"- {att.get('name', 'Unknown')} ({att.get('type', 'unknown type')})")
     
     # Tabs for actions
-    tab1, tab2, tab3, tab4 = st.tabs(["Reply", "Explain", "Set Reminder", "Sender Context"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Email Agent", "Reply", "Explain", "Set Reminder", "Sender Context"])
     
     with tab1:
-        render_reply_tab(email)
+        render_email_agent_tab(email)
     
     with tab2:
-        render_explain_tab(email)
+        render_reply_tab(email)
     
     with tab3:
-        render_reminder_tab(email)
+        render_explain_tab(email)
     
     with tab4:
+        render_reminder_tab(email)
+    
+    with tab5:
         render_sender_context_tab(email)
+
+
+def render_email_agent_tab(email: Email):
+    """Render Email Agent tab - ask questions about this specific email."""
+    st.subheader("Email Agent - Ask Questions About This Email")
+    
+    st.markdown("""
+    Ask questions about this specific email. The agent will analyze the email content and provide answers.
+    """)
+    
+    # Pre-filled query examples
+    example_queries = [
+        "Summarize this email",
+        "What tasks do I need to do?",
+        "What is the deadline?",
+        "Who are the participants?",
+        "What action items are mentioned?",
+        "Draft a reply based on my tone"
+    ]
+    
+    st.markdown("**Example queries:**")
+    cols = st.columns(3)
+    for i, example in enumerate(example_queries):
+        with cols[i % 3]:
+            if st.button(example, key=f"example_{email.id}_{i}"):
+                st.session_state[f"email_agent_query_{email.id}"] = example
+                st.rerun()
+    
+    # Query input
+    query = st.text_input(
+        "Ask a question about this email:",
+        value=st.session_state.get(f"email_agent_query_{email.id}", ""),
+        key=f"email_agent_input_{email.id}",
+        placeholder="e.g., 'Summarize this email' or 'What tasks do I need to do?'"
+    )
+    
+    if st.button("Ask Agent", key=f"ask_agent_{email.id}"):
+        if query:
+            try:
+                from core.llm_client import LLMClient
+                
+                llm_client = LLMClient()
+                
+                # Build context for this specific email
+                context_prompt = f"""You are an email assistant. The user has selected a specific email and asked: "{query}"
+
+Email Details:
+From: {email.sender_name} ({email.sender})
+Subject: {email.subject}
+Date: {email.timestamp.strftime('%Y-%m-%d %H:%M')}
+Category: {email.category or 'Uncategorized'}
+Priority: {email.priority or 'Medium'}
+
+Email Body:
+{email.body}
+
+Extracted Information:
+"""
+                
+                # Add tasks and events for this email
+                tasks = [t for t in st.session_state.tasks if t.source_email_id == email.id]
+                events = [e for e in st.session_state.events if e.source_email_id == email.id]
+                
+                if tasks:
+                    context_prompt += "\nTasks:\n"
+                    for task in tasks:
+                        context_prompt += f"- {task.title} (Due: {task.due_date or 'No due date'}, Status: {task.status})\n"
+                
+                if events:
+                    context_prompt += "\nEvents:\n"
+                    for event in events:
+                        context_prompt += f"- {event.title} ({event.type}) on {event.date}"
+                        if event.start_time:
+                            context_prompt += f" at {event.start_time}"
+                        context_prompt += "\n"
+                
+                # Use stored prompts if available
+                if "draft" in query.lower() or "reply" in query.lower():
+                    # Use reply generation prompt
+                    prompt_template = st.session_state.prompts.get('reply_generation', prompts.REPLY_GENERATION_PROMPT)
+                    context_prompt += f"\nUse the following prompt style for generating replies:\n{prompt_template}\n"
+                
+                context_prompt += f"""
+Based on the email content and extracted information above, answer the user's question: "{query}"
+
+Provide a clear, helpful answer. If the question asks for a summary, provide a concise summary.
+If it asks for tasks, list them clearly. If it asks to draft a reply, generate a professional draft reply.
+"""
+                
+                with st.spinner("Analyzing email and thinking..."):
+                    response = llm_client._call_llm(context_prompt, temperature=0.7)
+                
+                st.markdown("### Agent Response:")
+                st.info(response)
+                
+                # If query is about drafting a reply, also show the draft generation
+                if "draft" in query.lower() or "reply" in query.lower():
+                    st.markdown("---")
+                    st.markdown("### Generated Draft:")
+                    # Use the reply generation prompt
+                    prompt = st.session_state.prompts.get('reply_generation', prompts.REPLY_GENERATION_PROMPT)
+                    tone = "Professional"  # Default tone
+                    draft_reply = llm_client.generate_reply(email, "", tone, prompt)
+                    st.text_area("Draft Reply", draft_reply, height=200, key=f"agent_draft_{email.id}")
+                    
+            except Exception as e:
+                st.error(f"Error processing query: {str(e)}")
+        else:
+            st.warning("Please enter a question.")
 
 
 def render_reply_tab(email: Email):
     """Render reply generation tab."""
-    st.subheader("✍️ Generate Draft Reply")
+    st.subheader("Generate Draft Reply")
     
     col1, col2 = st.columns(2)
     
@@ -188,7 +319,7 @@ def render_reply_tab(email: Email):
 
 def render_explain_tab(email: Email):
     """Render explanation tab."""
-    st.subheader("🤔 Why was this email categorized this way?")
+    st.subheader("Why was this email categorized this way?")
     
     if st.button("Generate Explanation"):
         try:
@@ -212,7 +343,7 @@ def render_explain_tab(email: Email):
 
 def render_reminder_tab(email: Email):
     """Render reminder setting tab."""
-    st.subheader("⏰ Set Reminder")
+    st.subheader("Set Reminder")
     
     reminder_options = {
         "Today evening": "today_evening",
@@ -257,7 +388,7 @@ def render_reminder_tab(email: Email):
 
 def render_sender_context_tab(email: Email):
     """Render sender context tab."""
-    st.subheader("👤 Sender Context")
+    st.subheader("Sender Context")
     
     st.markdown(f"**Name:** {email.sender_name}")
     st.markdown(f"**Email:** {email.sender}")

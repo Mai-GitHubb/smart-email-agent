@@ -9,10 +9,12 @@ from core.models import Task
 
 def render_tasks():
     """Render the tasks Kanban board."""
-    st.header("📋 Task Board")
+    st.header("Task Board")
     
-    # Statistics
-    col1, col2, col3 = st.columns(3)
+    # Section: Task Statistics
+    with st.container():
+        st.markdown("### Task Statistics")
+        col1, col2, col3 = st.columns(3)
     
     todo_tasks = get_tasks_by_status("todo")
     in_progress_tasks = get_tasks_by_status("in_progress")
@@ -27,11 +29,13 @@ def render_tasks():
     
     st.divider()
     
-    # Kanban columns
+    # Section: Kanban Board
+    st.markdown("### Kanban Board")
+    st.caption("Drag tasks between columns or use the status dropdown to update task status")
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.subheader("📋 To Do")
+        st.subheader("To Do")
         for task in todo_tasks:
             with st.container():
                 task_card(task)
@@ -57,7 +61,7 @@ def render_tasks():
                 st.divider()
     
     with col2:
-        st.subheader("🔄 In Progress")
+        st.subheader("In Progress")
         for task in in_progress_tasks:
             with st.container():
                 task_card(task)
@@ -81,7 +85,7 @@ def render_tasks():
                 st.divider()
     
     with col3:
-        st.subheader("✅ Done")
+        st.subheader("Done")
         for task in done_tasks:
             with st.container():
                 task_card(task)
@@ -104,9 +108,9 @@ def render_tasks():
                 
                 st.divider()
     
-    # Filter options
+    # Section: Filters
     st.divider()
-    st.subheader("Filters")
+    st.markdown("### Filter Tasks")
     
     col1, col2 = st.columns(2)
     

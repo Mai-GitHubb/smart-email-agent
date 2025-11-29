@@ -11,7 +11,9 @@ The system uses user-defined prompts ("the agent brain") to guide all LLM-powere
 - **Task Extraction**: Extracts actionable tasks from emails with due dates
 - **Event/Deadline Extraction**: Identifies meetings and deadlines from email content
 - **Draft Reply Generation**: Generates draft replies with customizable tone (Formal, Friendly, Concise, etc.)
-- **Chat-style Inbox Interaction**: Ask questions about your inbox in natural language
+- **New Draft Generation**: Generate new email drafts (not just replies)
+- **Email Agent**: Dedicated page for chat-based inbox interaction - select an email and ask questions
+- **Chat-style Inbox Interaction**: Ask questions about your inbox in natural language (reads all emails)
 
 ### Productivity Features
 - **Today Dashboard**: Overview of unread emails, tasks, and upcoming events
@@ -27,16 +29,18 @@ The system uses user-defined prompts ("the agent brain") to guide all LLM-powere
 - **Suggested Follow-ups**: AI-generated follow-up suggestions for each draft
 - **Explanation Mode**: Understand why emails were categorized or processed a certain way
 - **Tone & Completeness Check**: Review draft replies for appropriateness and completeness
+- **Google Calendar Integration**: Sync tasks and confirmed events to Google Calendar
+- **Calendar View**: Month grid view with tasks and events displayed on their dates (todo calendar)
 - **Two Modes**: 
-  - **Mock Inbox Mode**: Use sample emails for demos (no authentication needed)
-  - **Gmail API Mode**: Connect to real Gmail account (OAuth 2.0)
+  - **Mock Inbox Mode**: Use sample emails for demos (no authentication needed) - 25 diverse sample emails
+  - **Gmail API Mode**: Connect to real Gmail account (OAuth 2.0) - fetches up to 100 emails
 - **Safety**: All drafts are stored locally, never auto-sent
 
 ## Setup Instructions
 
 ### Prerequisites
 - Python 3.10 or higher
-- Ollama installed and running locally (or use OpenAI with API key)
+- Ollama installed and running locally (default) OR OpenAI API key (optional)
 
 ### Installation
 
@@ -123,21 +127,26 @@ smart_email_agent/
 ├── README.md             # This file
 ├── ARCHITECTURE.md       # System architecture documentation
 ├── core/                 # Core functionality
-│   ├── models.py         # Data models (Email, Task, Event, Reminder)
-│   ├── llm_client.py     # LLM abstraction layer
+│   ├── models.py         # Data models (Email, Task, Event, Reminder, Draft)
+│   ├── llm_client.py     # LLM abstraction layer (Ollama/OpenAI)
 │   ├── prompts.py        # Prompt templates
+│   ├── prompt_storage.py # Prompt persistence (save/load to JSON)
 │   ├── processors.py     # Email processing logic
 │   ├── gmail_client.py   # Gmail API wrapper
+│   ├── google_calendar_client.py  # Google Calendar API wrapper
 │   ├── mock_data_loader.py  # Mock inbox loader
+│   ├── date_utils.py    # Date parsing utilities
 │   └── state.py          # Session state management
 ├── ui/                   # UI components
 │   ├── layout.py         # Main layout and sidebar
 │   ├── components.py     # Reusable UI components
-│   ├── dashboard.py      # Dashboard view
+│   ├── dashboard.py      # Dashboard view (2x2 grid layout)
 │   ├── inbox_view.py     # Inbox and email detail view
-│   ├── calendar_view.py  # Calendar and events view
+│   ├── email_agent_view.py  # Email Agent chat interface
+│   ├── calendar_view.py  # Calendar and events view (month grid)
 │   ├── tasks_view.py     # Task board (Kanban)
 │   ├── files_view.py     # Attachments hub
+│   ├── drafts_view.py    # Draft management (new/reply)
 │   └── settings_view.py  # Settings and Prompt Brain
 ├── data/                 # Data files
 │   └── mock_inbox.json   # Sample emails for mock mode
@@ -149,11 +158,13 @@ smart_email_agent/
 
 ### Dashboard
 The default view shows:
-- Statistics (unread emails, tasks, events)
-- High priority unread emails
-- Upcoming deadlines
-- Next meetings
-- Top tasks
+- Statistics (unread emails, tasks, events, due soon)
+- 2x2 grid layout with styled sections:
+  - High priority unread emails (left, top)
+  - Upcoming deadlines (left, bottom)
+  - Next meetings (right, top)
+  - Top tasks (right, bottom)
+- Quick actions to navigate to other pages
 
 ### Inbox
 - View all emails with filtering options
@@ -163,9 +174,11 @@ The default view shows:
 - View sender context
 
 ### Calendar
-- View events by date
-- Manage suggested events from emails
-- Confirm, edit, or ignore extracted events
+- **Month Grid View**: Visual calendar with tasks and events displayed on their dates (todo calendar style)
+- **Suggested Events**: Manage events extracted from emails
+- **Confirm, Edit, or Ignore**: Review and manage suggested events
+- **Google Calendar Sync**: Sync tasks and confirmed events to Google Calendar
+- **Detail View**: View all tasks and events for a specific date
 
 ### Tasks
 - Kanban board with To Do, In Progress, and Done columns
@@ -180,20 +193,47 @@ The default view shows:
 ### Settings
 - **Mode Selection**: Switch between Mock Inbox and Gmail API
 - **Prompt Brain**: Customize all LLM prompts used by the system
+  - Categorization Prompt
+  - Task Extraction Prompt
+  - Event Extraction Prompt
+  - Reply Generation Prompt
+  - New Draft Generation Prompt
+  - Explanation, Tone Check, Sender Context, Inbox Query prompts
+  - All prompts are saved to `data/prompts.json` automatically
+  - Reset to defaults option available
+
+### Drafts
+- **Create New Draft**: Generate new email drafts from scratch
+- **Reply to Email**: Generate replies to existing emails
+- **Edit Drafts**: Edit and modify saved drafts
+- **View Drafts**: List all saved drafts with metadata
+- **Suggested Follow-ups**: AI-generated follow-up suggestions for each draft
+
+### Email Agent
+Navigate to the **Email Agent** page to:
+- Select any email from your inbox
+- Ask questions about that specific email:
+  - "Summarize this email"
+  - "What tasks do I need to do?"
+  - "What is the deadline?"
+  - "Draft a reply based on my tone"
+- Get AI-powered responses based on email content and extracted information
 
 ### Chat with Inbox
-Use the sidebar to ask questions like:
+Use the sidebar "Ask Your Inbox" to ask general questions like:
 - "Summarize my unread emails from today"
 - "Show tasks due this week"
 - "Find emails about the DBMS project"
+- "What are my upcoming deadlines?"
 
 ## Configuration
 
 ### LLM Configuration
 Edit `config.py` or set environment variables to customize:
 - **LLM Provider**: Default is `ollama` (can be changed to `openai`)
-- **LLM Model**: Default is `llama2:latest` (change to any Ollama model you have installed)
+- **LLM Model**: Default is `llama2:latest` (change to any Ollama model you have installed, e.g., `llama3.2`, `mistral`, `qwen2.5`)
 - **Ollama Base URL**: Default is `http://localhost:11434`
+- **Max Emails to Fetch**: Default is 100 (from Gmail API)
 
 **Environment Variables** (in `.env` file):
 ```bash
@@ -275,9 +315,21 @@ This project satisfies all assignment requirements:
 - ✅ Never auto-sends emails (safety first)
 
 ### ✅ Project Assets
-- ✅ Mock Inbox: `data/mock_inbox.json` with 15+ sample emails
+- ✅ Mock Inbox: `data/mock_inbox.json` with 25 diverse sample emails including:
+  - Meeting requests
+  - Newsletters
+  - Spam messages
+  - Task requests
+  - Project updates
+  - Interview invitations
+  - Webinar invitations
+  - Invoices
+  - Security alerts
+  - And more
 - ✅ Default Prompt Templates: All prompts in `core/prompts.py`
 - ✅ README.md: Complete setup and usage instructions
+- ✅ ARCHITECTURE.md: System architecture documentation
+- ✅ APP_DOCUMENTATION.md: Detailed code documentation
 
 ## Extending the App
 

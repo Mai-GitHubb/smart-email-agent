@@ -67,7 +67,7 @@ class GmailClient:
             print(f"Gmail authentication error: {e}")
             return False
     
-    def fetch_emails(self, max_results: int = 100, query: str = None) -> List[Email]:
+    def fetch_emails(self, max_results: int = 50, query: str = None) -> List[Email]:
         """
         Fetch emails from Gmail.
         
@@ -185,6 +185,7 @@ class GmailClient:
     def _extract_body(self, payload: dict) -> str:
         """
         Extract email body from Gmail payload.
+        Handles nested multipart messages and prefers plain text over HTML.
         
         Args:
             payload: Gmail message payload
@@ -192,29 +193,72 @@ class GmailClient:
         Returns:
             Email body text
         """
-        body = ""
+        body_text = ""
+        body_html = ""
         
+        def extract_from_part(part: dict):
+            """Recursively extract body from a part."""
+            nonlocal body_text, body_html
+            
+            mime_type = part.get('mimeType', '')
+            
+            # If this part has nested parts, recurse
+            if 'parts' in part:
+                for subpart in part['parts']:
+                    extract_from_part(subpart)
+            else:
+                # Extract body data
+                body_data = part.get('body', {}).get('data')
+                if body_data:
+                    try:
+                        decoded = base64.urlsafe_b64decode(body_data).decode('utf-8', errors='ignore')
+                        if mime_type == 'text/plain' and not body_text:
+                            body_text = decoded
+                        elif mime_type == 'text/html' and not body_html:
+                            body_html = decoded
+                    except Exception as e:
+                        print(f"Error decoding body part: {e}")
+        
+        # Check if payload has parts (multipart message)
         if 'parts' in payload:
             for part in payload['parts']:
-                mime_type = part.get('mimeType', '')
-                if mime_type == 'text/plain':
-                    data = part.get('body', {}).get('data')
-                    if data:
-                        body = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
-                        break
-                elif mime_type == 'text/html' and not body:
-                    data = part.get('body', {}).get('data')
-                    if data:
-                        body = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
+                extract_from_part(part)
         else:
             # Single part message
             mime_type = payload.get('mimeType', '')
-            if mime_type in ['text/plain', 'text/html']:
-                data = payload.get('body', {}).get('data')
-                if data:
-                    body = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
+            body_data = payload.get('body', {}).get('data')
+            if body_data:
+                try:
+                    decoded = base64.urlsafe_b64decode(body_data).decode('utf-8', errors='ignore')
+                    if mime_type == 'text/plain':
+                        body_text = decoded
+                    elif mime_type == 'text/html':
+                        body_html = decoded
+                except Exception as e:
+                    print(f"Error decoding body: {e}")
         
-        return body
+        # Prefer plain text, fall back to HTML (strip HTML tags)
+        if body_text:
+            return body_text.strip()
+        elif body_html:
+            # Simple HTML tag removal (basic approach)
+            import re
+            # Remove HTML tags
+            text = re.sub(r'<[^>]+>', '', body_html)
+            # Decode common HTML entities
+            text = text.replace('&nbsp;', ' ')
+            text = text.replace('&amp;', '&')
+            text = text.replace('&lt;', '<')
+            text = text.replace('&gt;', '>')
+            text = text.replace('&quot;', '"')
+            text = text.replace('&#39;', "'")
+            # Clean up whitespace
+            text = re.sub(r'\s+', ' ', text).strip()
+            # Remove extra newlines
+            text = re.sub(r'\n\s*\n', '\n\n', text)
+            return text
+        
+        return ""
     
     def is_authenticated(self) -> bool:
         """

@@ -10,33 +10,55 @@ from datetime import datetime
 
 
 def initialize_state():
-    """Initialize all session state variables."""
+    """
+    Initialize all session state variables.
+    
+    This function sets up all the necessary session state variables for the application.
+    It ensures that:
+    - All data structures (emails, tasks, events, etc.) are initialized
+    - Prompts are loaded from persistent storage (data/prompts.json) or defaults
+    - Mode is set to "mock" by default (can be changed to "gmail" in settings)
+    
+    Session state persists across reruns in Streamlit, allowing data to be maintained
+    throughout the user's session.
+    """
+    # Email storage - list of Email objects loaded from mock inbox or Gmail API
     if 'emails' not in st.session_state:
         st.session_state.emails = []
     
+    # Task storage - list of Task objects extracted from emails
     if 'tasks' not in st.session_state:
         st.session_state.tasks = []
     
+    # Event storage - list of Event objects extracted from emails (meetings/deadlines)
     if 'events' not in st.session_state:
         st.session_state.events = []
     
+    # Reminder storage - list of Reminder objects linked to emails
     if 'reminders' not in st.session_state:
         st.session_state.reminders = []
     
+    # Currently selected email ID (for detail view)
     if 'selected_email_id' not in st.session_state:
         st.session_state.selected_email_id = None
     
+    # Application mode: "mock" for mock inbox, "gmail" for Gmail API
     if 'mode' not in st.session_state:
         st.session_state.mode = "mock"  # "mock" or "gmail"
     
+    # Load prompts from persistent storage (data/prompts.json)
+    # If file doesn't exist, uses default prompts from core.prompts
+    # This is the "Prompt Brain" - user-defined prompts that control LLM behavior
     if 'prompts' not in st.session_state:
-        # Load prompts from file or use defaults
         from core.prompt_storage import load_prompts
         st.session_state.prompts = load_prompts()
     
+    # Draft storage - list of Draft objects (new emails and replies)
+    # Each draft includes metadata, suggested follow-ups, etc.
     if 'drafts' not in st.session_state:
-        st.session_state.drafts = []  # Store email drafts with metadata
+        st.session_state.drafts = []
     
+    # Processing cache - stores processing results to avoid redundant LLM calls
     if 'processing_cache' not in st.session_state:
         st.session_state.processing_cache = {}
 
@@ -106,6 +128,15 @@ def get_tasks_due_soon(days: int = 7) -> List[Task]:
                 due_soon.append(task)
     
     return sorted(due_soon, key=lambda t: t.due_date or "")
+
+
+def get_tasks_by_date(date: str) -> List[Task]:
+    """Get tasks that are due on a specific date (YYYY-MM-DD)."""
+    return [
+        t
+        for t in st.session_state.tasks
+        if t.due_date == date and t.status != "done"
+    ]
 
 
 def get_high_priority_emails() -> List[Email]:

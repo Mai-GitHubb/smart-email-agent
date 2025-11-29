@@ -384,18 +384,61 @@ class LLMClient:
         Returns:
             Response to the query
         """
+        # Build detailed emails text from context if not already provided
+        emails_text = context.get("emails_text", "")
+        if not emails_text and context.get("emails"):
+            for email in context["emails"][:50]:  # Limit to 50 most recent
+                emails_text += f"\nEmail ID: {email.id}\n"
+                emails_text += f"From: {email.sender_name} ({email.sender})\n"
+                emails_text += f"Subject: {email.subject}\n"
+                emails_text += f"Date: {email.timestamp.strftime('%Y-%m-%d %H:%M')}\n"
+                emails_text += f"Category: {email.category or 'Uncategorized'}\n"
+                emails_text += f"Priority: {email.priority or 'Medium'}\n"
+                emails_text += f"Read: {'Yes' if email.is_read else 'No'}\n"
+                emails_text += f"Body: {email.body[:500]}...\n"  # First 500 chars
+                emails_text += "---\n"
+        
+        # Build tasks text if not provided
+        tasks_text = context.get("tasks_text", "")
+        if not tasks_text and context.get("tasks"):
+            for task in context["tasks"]:
+                tasks_text += f"\nTask: {task.title}\n"
+                tasks_text += f"Status: {task.status}\n"
+                tasks_text += f"Due Date: {task.due_date or 'No due date'}\n"
+                tasks_text += f"Priority: {task.priority or 'Medium'}\n"
+                if task.notes:
+                    tasks_text += f"Notes: {task.notes}\n"
+                tasks_text += "---\n"
+        
+        # Build events text if not provided
+        events_text = context.get("events_text", "")
+        if not events_text and context.get("events"):
+            for event in context["events"]:
+                events_text += f"\nEvent: {event.title}\n"
+                events_text += f"Type: {event.type}\n"
+                events_text += f"Date: {event.date}\n"
+                if event.start_time:
+                    events_text += f"Time: {event.start_time}" + (f" - {event.end_time}" if event.end_time else "") + "\n"
+                if event.location:
+                    events_text += f"Location: {event.location}\n"
+                events_text += f"Status: {event.status}\n"
+                events_text += "---\n"
+        
         prompt = prompt_template.format(
             query=query,
             total_emails=context.get("total_emails", 0),
             unread_count=context.get("unread_count", 0),
             categories=context.get("categories", ""),
             tasks_summary=context.get("tasks_summary", ""),
-            events_summary=context.get("events_summary", "")
+            events_summary=context.get("events_summary", ""),
+            emails_text=emails_text or "No emails available.",
+            tasks_text=tasks_text or "No tasks available.",
+            events_text=events_text or "No events available."
         )
         
         try:
-            response = self._call_llm(prompt, temperature=0.6)
+            response = self._call_llm(prompt, temperature=0.7)  # Slightly higher for more conversational
             return response.strip()
         except Exception as e:
-            return f"Error processing query: {str(e)}"
+            return f"Sorry, I encountered an error processing your question: {str(e)}"
 

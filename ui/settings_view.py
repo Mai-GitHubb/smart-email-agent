@@ -101,6 +101,7 @@ def render_mode_selection():
                     
                     # Fetch emails
                     with st.spinner("Fetching emails..."):
+                        # Fetch up to 50 emails
                         emails = gmail_client.fetch_emails(max_results=50)
                         st.session_state.emails = emails
                         st.success(f"Fetched {len(emails)} emails!")
