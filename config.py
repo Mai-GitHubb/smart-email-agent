@@ -55,11 +55,11 @@ def _get_config(key: str, default: str = "") -> str:
 # Default is Ollama (local, free), but can be switched to OpenAI or others
 
 # LLM Provider: "ollama" (default, local) or "openai" (cloud, requires API key)
-LLM_PROVIDER = _get_config("LLM_PROVIDER", "ollama")
+LLM_PROVIDER = _get_config("LLM_PROVIDER", "gemini")
 
 # LLM Model: For Ollama, use models like "llama2:latest", "llama3.2", "mistral", "qwen2.5"
 # For OpenAI, use models like "gpt-4-turbo-preview", "gpt-3.5-turbo"
-LLM_MODEL = _get_config("LLM_MODEL", "llama2:latest")
+LLM_MODEL = _get_config("LLM_MODEL", "gemini-2.5-flash")
 
 # Ollama Base URL: Where the Ollama server is running (default: localhost)
 OLLAMA_BASE_URL = _get_config("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -67,6 +67,10 @@ OLLAMA_BASE_URL = _get_config("OLLAMA_BASE_URL", "http://localhost:11434")
 # OpenAI Configuration (optional, only needed if using OpenAI provider)
 OPENAI_API_KEY = _get_config("OPENAI_API_KEY", "")
 OPENAI_MODEL = _get_config("OPENAI_MODEL", "gpt-4-turbo-preview")
+
+# Gemini / Google Generative AI Configuration (optional, only needed if using Gemini provider)
+GEMINI_API_KEY = _get_config("GEMINI_API_KEY", "")
+GEMINI_MODEL = _get_config("GEMINI_MODEL", "gemini-2.5-flash")
 
 # ============================================================================
 # Gmail API Configuration

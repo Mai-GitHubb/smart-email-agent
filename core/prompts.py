@@ -13,7 +13,7 @@ From: {sender}
 Subject: {subject}
 Body: {body}
 
-Please categorize this email and assign a priority level.
+Please categorize this email and always assign a priority level.
 
 Respond in JSON format:
 {{

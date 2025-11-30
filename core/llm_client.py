@@ -15,6 +15,11 @@ try:
     OLLAMA_AVAILABLE = True
 except ImportError:
     OLLAMA_AVAILABLE = False
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
 
 try:
     from openai import OpenAI
@@ -63,9 +68,25 @@ class LLMClient:
             if not self.api_key:
                 raise ValueError("OpenAI API key not found. Set OPENAI_API_KEY environment variable.")
             self.client = OpenAI(api_key=self.api_key)
+        elif self.provider == "gemini":
+            if not GEMINI_AVAILABLE:
+                raise ValueError(
+                    "google-generativeai package not installed. Install it with: pip install google-generativeai"
+                )
+            # Override API key & model with Gemini-specific config
+            gemini_api_key = api_key or getattr(config, "GEMINI_API_KEY", "")
+            if not gemini_api_key:
+                raise ValueError("Gemini API key not found. Set GEMINI_API_KEY environment variable.")
+            genai.configure(api_key=gemini_api_key)
+
+            # Use Gemini model if provided, otherwise default
+            self.model = model or getattr(config, "GEMINI_MODEL", "gemini-2.5-flash")
+
         else:
-            raise ValueError(f"Unsupported LLM provider: {self.provider}. Supported: 'ollama', 'openai'")
-    
+            raise ValueError(
+                f"Unsupported LLM provider: {self.provider}. Supported: 'ollama', 'openai', 'gemini'"
+            )
+
     def _call_llm(self, prompt: str, temperature: float = 0.3) -> str:
         """
         Make a call to the LLM.
@@ -108,6 +129,32 @@ class LLMClient:
                 return response.choices[0].message.content
             except Exception as e:
                 raise Exception(f"OpenAI API call failed: {str(e)}")
+        elif self.provider == "gemini":
+            try:
+                # Decide if we should force JSON output (like OpenAI's response_format)
+                wants_json = "JSON" in prompt.upper()
+
+                generation_config: Dict[str, Any] = {
+                    "temperature": temperature,
+                }
+                if wants_json:
+                    # Ask Gemini to return raw JSON text
+                    generation_config["response_mime_type"] = "application/json"
+
+                model = genai.GenerativeModel(self.model)
+                response = model.generate_content(
+                    [
+                        "You are a helpful email assistant. Always respond with valid JSON when requested.",
+                        prompt,
+                    ],
+                    generation_config=generation_config,
+                )
+
+                # google-generativeai exposes text as .text
+                return response.text
+            except Exception as e:
+                raise Exception(f"Gemini API call failed: {str(e)}")
+
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
     
@@ -125,7 +172,7 @@ class LLMClient:
         prompt = prompt_template.format(
             sender=email.sender,
             subject=email.subject,
-            body=email.body[:2000]  # Limit body length
+            body=email.body[:4000]  # Limit body length
         )
         
         try:
@@ -441,4 +488,3 @@ class LLMClient:
             return response.strip()
         except Exception as e:
             return f"Sorry, I encountered an error processing your question: {str(e)}"
-
