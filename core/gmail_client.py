@@ -105,6 +105,7 @@ class GmailClient:
             self.service = build('gmail', 'v1', credentials=self.creds)
             return True
         except Exception as e:
+            print("Gmail integration is available only when running locally.")
             print(f"Gmail authentication error: {e}")
             return False
     
