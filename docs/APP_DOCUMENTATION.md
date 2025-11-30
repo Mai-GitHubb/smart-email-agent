@@ -26,9 +26,8 @@ This document provides detailed documentation for all modules, classes, and func
 
 ### Variables
 
-- `LLM_PROVIDER`: LLM provider name (default: "ollama")
-- `LLM_MODEL`: Model name to use (default: "llama2:latest")
-- `OLLAMA_BASE_URL`: Ollama API base URL (default: "http://localhost:11434")
+- `LLM_PROVIDER`: LLM provider name (default: "gemini")
+- `LLM_MODEL`: Model name to use (default: "gemini-2.5-flash")
 - `OPENAI_API_KEY`: OpenAI API key from environment (optional)
 - `OPENAI_MODEL`: OpenAI model name (default: "gpt-4-turbo-preview")
 - `GMAIL_CREDENTIALS_FILE`: Path to Gmail OAuth credentials
@@ -150,14 +149,11 @@ Result of email categorization.
 Initialize LLM client.
 
 **Parameters**:
-- `provider`: LLM provider name (defaults to config, supports "ollama" or "openai")
-- `api_key`: API key for OpenAI (defaults to config, not needed for Ollama)
-- `model`: Model name (defaults to config, e.g., "llama2:latest" for Ollama)
-- `base_url`: Base URL for Ollama (defaults to config, e.g., "http://localhost:11434")
+- `provider`: LLM provider name (defaults to config, supports "gemini" or "openai")
+- `api_key`: API key for OpenAI (defaults to config, not needed for gemini)
+- `model`: Model name (defaults to config, e.g., "gemini-2.5-flash" for gemini)
 
 **Raises**: `ValueError` if provider unsupported or API key missing (for OpenAI)
-
-**Note**: For Ollama, tests connection and verifies model availability on initialization.
 
 #### `_call_llm(prompt: str, temperature: float = 0.3) -> str`
 Make a call to the LLM.
