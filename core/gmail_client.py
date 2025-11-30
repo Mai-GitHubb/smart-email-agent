@@ -2,10 +2,12 @@
 Gmail API client wrapper.
 
 Handles OAuth authentication and Gmail API operations.
+Supports credentials from files (local) or JSON strings (Streamlit Cloud).
 """
 import os
 import base64
 import json
+import tempfile
 from typing import List, Optional
 from datetime import datetime
 from google.auth.transport.requests import Request
@@ -32,10 +34,41 @@ class GmailClient:
         self.token_file = token_file or config.GMAIL_TOKEN_FILE
         self.service = None
         self.creds = None
+        self._temp_credentials_file = None  # For credentials from secrets
+    
+    def _get_credentials_file(self) -> Optional[str]:
+        """
+        Get credentials file path, creating temp file from secrets if needed.
+        
+        Returns:
+            Path to credentials file, or None if not available
+        """
+        # First, check if credentials JSON string is available (from Streamlit secrets)
+        if config.GMAIL_CREDENTIALS_JSON:
+            try:
+                # Parse JSON to validate
+                creds_data = json.loads(config.GMAIL_CREDENTIALS_JSON)
+                # Create temporary file for credentials
+                if self._temp_credentials_file is None or not os.path.exists(self._temp_credentials_file):
+                    temp_fd, temp_path = tempfile.mkstemp(suffix='.json', prefix='gmail_creds_')
+                    with os.fdopen(temp_fd, 'w') as f:
+                        json.dump(creds_data, f)
+                    self._temp_credentials_file = temp_path
+                return self._temp_credentials_file
+            except (json.JSONDecodeError, Exception) as e:
+                print(f"Error parsing Gmail credentials JSON: {e}")
+                # Fall back to file
+        
+        # Fall back to credentials file
+        if os.path.exists(self.credentials_file):
+            return self.credentials_file
+        
+        return None
     
     def authenticate(self) -> bool:
         """
         Authenticate with Gmail API using OAuth 2.0.
+        Supports credentials from file or JSON string (Streamlit secrets).
         
         Returns:
             True if authentication successful, False otherwise
@@ -50,15 +83,23 @@ class GmailClient:
                 if self.creds and self.creds.expired and self.creds.refresh_token:
                     self.creds.refresh(Request())
                 else:
-                    if not os.path.exists(self.credentials_file):
+                    # Get credentials file (from secrets or file)
+                    creds_file = self._get_credentials_file()
+                    if not creds_file:
                         return False
+                    
                     flow = InstalledAppFlow.from_client_secrets_file(
-                        self.credentials_file, config.GMAIL_SCOPES)
+                        creds_file, config.GMAIL_SCOPES)
                     self.creds = flow.run_local_server(port=0)
                 
-                # Save credentials for next run
-                with open(self.token_file, 'w') as token:
-                    token.write(self.creds.to_json())
+                # Save credentials for next run (only if token file path is writable)
+                try:
+                    with open(self.token_file, 'w') as token:
+                        token.write(self.creds.to_json())
+                except Exception as e:
+                    # In Streamlit Cloud, token file might not be writable
+                    # This is okay, credentials will be refreshed on next run
+                    print(f"Note: Could not save token file: {e}")
             
             # Build service
             self.service = build('gmail', 'v1', credentials=self.creds)

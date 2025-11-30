@@ -63,8 +63,8 @@ Thumbs.db
 Desktop.ini
 
 # Streamlit
-.streamlit/
 .streamlit/secrets.toml
+# Note: .streamlit/config.toml is safe to commit (no secrets)
 
 # Logs
 *.log

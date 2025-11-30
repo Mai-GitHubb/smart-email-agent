@@ -117,6 +117,34 @@ The system uses user-defined prompts ("the agent brain") to guide all LLM-powere
 
 **Note**: The app uses read-only Gmail access. It never auto-sends emails.
 
+## Deployment to Streamlit Cloud
+
+The app can be deployed to Streamlit Cloud for easy sharing and access. The app automatically reads configuration from Streamlit secrets when deployed.
+
+### Quick Deployment Steps
+
+1. **Push your code to GitHub/GitLab**
+2. **Go to [Streamlit Cloud](https://share.streamlit.io/)**
+3. **Create a new app** and connect your repository
+4. **Configure secrets** in the Streamlit Cloud dashboard (Settings → Secrets):
+   - Add LLM configuration (provider, model, API keys)
+   - Add Gmail/Calendar OAuth credentials as JSON strings
+   - See `STREAMLIT_DEPLOYMENT.md` for detailed instructions
+
+### Configuration Priority
+
+The app reads configuration in this order:
+1. **Streamlit secrets** (when deployed to Streamlit Cloud)
+2. **Environment variables** (`.env` file for local development)
+3. **Default values** (fallback)
+
+### Local Development vs. Cloud
+
+- **Local**: Uses `.streamlit/secrets.toml` or `.env` file
+- **Cloud**: Uses Streamlit Cloud secrets configured in the dashboard
+
+For detailed deployment instructions, see [`STREAMLIT_DEPLOYMENT.md`](STREAMLIT_DEPLOYMENT.md).
+
 ## Project Structure
 
 ```
