@@ -40,34 +40,22 @@ The system uses user-defined prompts ("the agent brain") to guide all LLM-powere
 
 ### Prerequisites
 - Python 3.10 or higher
-- Ollama installed and running locally (default) OR OpenAI API key (optional)
+- Gemini API key (default) OR Ollama installed and running locally (optional) OR OpenAI API key (optional)
 
 ### Installation
 
-1. **Install Ollama** (if not already installed):
-   - Visit [https://ollama.ai](https://ollama.ai) and download Ollama for your OS
-   - Install and start Ollama service
-   - Pull a model (recommended: `llama2:latest`, `llama3.2`, or `mistral`):
-     ```bash
-     ollama pull llama2:latest
-     # or
-     ollama pull llama3.2
-     ```
-   - Or use any other model: `ollama pull mistral`, `ollama pull qwen2.5`, etc.
+1. **Clone or download this repository**
 
-2. **Clone or download this repository**
-
-3. **Install Python dependencies**:
+2. **Install Python dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Set up environment variables (optional)**:
-   Create a `.env` file in the project root (optional, defaults work for Ollama):
+3. **Set up environment variables**:
+   Create a `.env` file in the project root:
    ```
-   LLM_PROVIDER=ollama
-   LLM_MODEL=llama2:latest
-   OLLAMA_BASE_URL=http://localhost:11434
+   LLM_PROVIDER = "gemini"
+   LLM_MODEL = "gemini-2.5-flash"
    ```
    
    **Note**: If you want to use OpenAI instead, set:
@@ -117,34 +105,6 @@ The system uses user-defined prompts ("the agent brain") to guide all LLM-powere
 
 **Note**: The app uses read-only Gmail access. It never auto-sends emails.
 
-## Deployment to Streamlit Cloud
-
-The app can be deployed to Streamlit Cloud for easy sharing and access. The app automatically reads configuration from Streamlit secrets when deployed.
-
-### Quick Deployment Steps
-
-1. **Push your code to GitHub/GitLab**
-2. **Go to [Streamlit Cloud](https://share.streamlit.io/)**
-3. **Create a new app** and connect your repository
-4. **Configure secrets** in the Streamlit Cloud dashboard (Settings → Secrets):
-   - Add LLM configuration (provider, model, API keys)
-   - Add Gmail/Calendar OAuth credentials as JSON strings
-   - See `STREAMLIT_DEPLOYMENT.md` for detailed instructions
-
-### Configuration Priority
-
-The app reads configuration in this order:
-1. **Streamlit secrets** (when deployed to Streamlit Cloud)
-2. **Environment variables** (`.env` file for local development)
-3. **Default values** (fallback)
-
-### Local Development vs. Cloud
-
-- **Local**: Uses `.streamlit/secrets.toml` or `.env` file
-- **Cloud**: Uses Streamlit Cloud secrets configured in the dashboard
-
-For detailed deployment instructions, see [`STREAMLIT_DEPLOYMENT.md`](STREAMLIT_DEPLOYMENT.md).
-
 ## Project Structure
 
 ```
@@ -187,7 +147,7 @@ smart_email_agent/
 ### Dashboard
 The default view shows:
 - Statistics (unread emails, tasks, events, due soon)
-- 2x2 grid layout with styled sections:
+- 4x1 grid layout with styled sections:
   - High priority unread emails (left, top)
   - Upcoming deadlines (left, bottom)
   - Next meetings (right, top)
@@ -258,16 +218,14 @@ Use the sidebar "Ask Your Inbox" to ask general questions like:
 
 ### LLM Configuration
 Edit `config.py` or set environment variables to customize:
-- **LLM Provider**: Default is `ollama` (can be changed to `openai`)
-- **LLM Model**: Default is `llama2:latest` (change to any Ollama model you have installed, e.g., `llama3.2`, `mistral`, `qwen2.5`)
-- **Ollama Base URL**: Default is `http://localhost:11434`
-- **Max Emails to Fetch**: Default is 100 (from Gmail API)
+- **LLM Provider**: Default is `gemini` (can be changed to `openai`)
+- **LLM Model**: Default is `gemini-2.5-flash`
+- **Max Emails to Fetch**: Default is 50 (from Gmail API)
 
 **Environment Variables** (in `.env` file):
 ```bash
-LLM_PROVIDER=ollama          # or "openai"
-LLM_MODEL=llama2:latest      # or "llama3.2", "mistral", "qwen2.5", etc.
-OLLAMA_BASE_URL=http://localhost:11434
+LLM_PROVIDER = "gemini"
+LLM_MODEL = "gemini-2.5-flash"
 ```
 
 ### Prompt Configuration
@@ -281,23 +239,8 @@ All prompts are stored in `data/prompts.json` and can be customized via the **Pr
 
 Prompts are automatically saved to file when edited in the UI.
 
-## Security Notes
-
-- **Never commit** `credentials.json`, `token.json`, or `.env` files
-- The app uses read-only Gmail access (no auto-sending)
-- API keys should be stored in environment variables
-- OAuth tokens are stored locally in `token.json`
 
 ## Troubleshooting
-
-### Ollama Connection Errors
-- **"Cannot connect to Ollama"**: Make sure Ollama is running
-  - On Windows: Check if Ollama service is running
-  - On Mac/Linux: Run `ollama serve` in terminal
-  - Verify Ollama is accessible at `http://localhost:11434`
-- **"Model not found"**: Pull the model first with `ollama pull <model_name>`
-  - Example: `ollama pull llama2:latest` or `ollama pull llama3.2`
-- **Slow responses**: Try a smaller/faster model like `llama3.2:1b` or `mistral:7b`
 
 ### OpenAI API Errors (if using OpenAI)
 - Verify your API key is set correctly in `.env`
