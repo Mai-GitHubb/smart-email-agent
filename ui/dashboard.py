@@ -55,8 +55,8 @@ def render_dashboard():
             border: 1px solid #ffffff;
             border-radius: 10px;
             padding: 8px 10px;
-            box-shadow: 0 2px 2px rgba(0,0,0,0.1);
-            background-color: #f8fafc;
+            box-shadow: 0px 0px 15px 0px rgb(255 74 74 / 10%);
+            background-color: #ffffff;
             max-height: 260px;  /* fixed height, scrollable content */
             overflow-y: auto;
             margin-bottom: 10px;
@@ -67,7 +67,7 @@ def render_dashboard():
             margin-bottom: 8px;
             position: sticky;
             top: 0;
-            background-color: #f8fafc;
+            background-color: #ffffff;
             padding-bottom: 4px;
             z-index: 1;
         }

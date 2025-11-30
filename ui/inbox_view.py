@@ -186,22 +186,38 @@ def render_email_agent_tab(email: Email):
     for i, example in enumerate(example_queries):
         with cols[i % 3]:
             if st.button(example, key=f"example_{email.id}_{i}"):
+                # Store query AND mark that we should run it on rerun
                 st.session_state[f"email_agent_query_{email.id}"] = example
+                st.session_state[f"email_agent_run_{email.id}"] = True
                 st.rerun()
     
     # Query input
+    query_key = f"email_agent_query_{email.id}"
+    run_flag_key = f"email_agent_run_{email.id}"
+
     query = st.text_input(
         "Ask a question about this email:",
-        value=st.session_state.get(f"email_agent_query_{email.id}", ""),
+        value=st.session_state.get(query_key, ""),
         key=f"email_agent_input_{email.id}",
         placeholder="e.g., 'Summarize this email' or 'What tasks do I need to do?'"
     )
     
-    if st.button("Ask Agent", key=f"ask_agent_{email.id}"):
+    # Decide whether to run: either Ask button OR example-click run flag
+    ask_clicked = st.button("Ask Agent", key=f"ask_agent_{email.id}")
+    run_from_example = st.session_state.get(run_flag_key, False)
+
+    run_agent = ask_clicked or run_from_example
+
+    # Clear the run flag so it doesn’t keep re-firing
+    if run_from_example:
+        st.session_state[run_flag_key] = False
+
+    if run_agent:
         if query:
             try:
                 from core.llm_client import LLMClient
-                
+                from core import prompts  # make sure this import exists at top if not already
+
                 llm_client = LLMClient()
                 
                 # Build context for this specific email
@@ -240,7 +256,10 @@ Extracted Information:
                 # Use stored prompts if available
                 if "draft" in query.lower() or "reply" in query.lower():
                     # Use reply generation prompt
-                    prompt_template = st.session_state.prompts.get('reply_generation', prompts.REPLY_GENERATION_PROMPT)
+                    prompt_template = st.session_state.prompts.get(
+                        'reply_generation',
+                        prompts.REPLY_GENERATION_PROMPT
+                    )
                     context_prompt += f"\nUse the following prompt style for generating replies:\n{prompt_template}\n"
                 
                 context_prompt += f"""
@@ -261,7 +280,10 @@ If it asks for tasks, list them clearly. If it asks to draft a reply, generate a
                     st.markdown("---")
                     st.markdown("### Generated Draft:")
                     # Use the reply generation prompt
-                    prompt = st.session_state.prompts.get('reply_generation', prompts.REPLY_GENERATION_PROMPT)
+                    prompt = st.session_state.prompts.get(
+                        'reply_generation',
+                        prompts.REPLY_GENERATION_PROMPT
+                    )
                     tone = "Professional"  # Default tone
                     draft_reply = llm_client.generate_reply(email, "", tone, prompt)
                     st.text_area("Draft Reply", draft_reply, height=200, key=f"agent_draft_{email.id}")
