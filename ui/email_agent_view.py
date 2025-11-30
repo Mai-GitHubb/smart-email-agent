@@ -1,6 +1,3 @@
-"""
-Email Agent view - Chat-based inbox interaction.
-"""
 import streamlit as st
 from core.state import get_email
 from core.llm_client import LLMClient
@@ -70,20 +67,35 @@ def render_email_agent():
     for i, example in enumerate(example_queries):
         with cols[i % 3]:
             if st.button(example, key=f"example_query_{i}"):
+                # 🔹 Store query AND mark that we should run it
                 st.session_state[f"email_agent_query_{selected_email_id}"] = example
+                st.session_state[f"email_agent_run_{selected_email_id}"] = True
                 st.rerun()
     
     st.divider()
     
-    # Query input
+    # Query input (pre-filled from session_state)
+    query_key = f"email_agent_query_{selected_email_id}"
+    run_flag_key = f"email_agent_run_{selected_email_id}"
+
     query = st.text_input(
         "Ask a question about this email:",
-        value=st.session_state.get(f"email_agent_query_{selected_email_id}", ""),
+        value=st.session_state.get(query_key, ""),
         key=f"email_agent_input_{selected_email_id}",
         placeholder="e.g., 'Summarize this email' or 'What tasks do I need to do?'"
     )
-    
-    if st.button("Ask Agent", key=f"ask_agent_button_{selected_email_id}", type="primary"):
+
+    # 🔹 Decide whether to run: either Ask button OR example-click run flag
+    ask_clicked = st.button("Ask Agent", key=f"ask_agent_button_{selected_email_id}", type="primary")
+    run_from_example = st.session_state.get(run_flag_key, False)
+
+    run_agent = ask_clicked or run_from_example
+
+    # Clear the run flag so it doesn’t keep re-firing
+    if run_from_example:
+        st.session_state[run_flag_key] = False
+
+    if run_agent:
         if query:
             try:
                 llm_client = LLMClient()
@@ -144,7 +156,6 @@ If it asks for tasks, list them clearly. If it asks to draft a reply, generate a
                 if "draft" in query.lower() or "reply" in query.lower():
                     st.markdown("---")
                     st.markdown("### Generated Draft:")
-                    # Use the reply generation prompt
                     prompt = st.session_state.prompts.get('reply_generation', prompts.REPLY_GENERATION_PROMPT)
                     tone = "Professional"  # Default tone
                     draft_reply = llm_client.generate_reply(selected_email, "", tone, prompt)
@@ -165,4 +176,3 @@ If it asks for tasks, list them clearly. If it asks to draft a reply, generate a
         for prev_query, prev_response in st.session_state.email_agent_history[selected_email_id][-3:]:
             with st.expander(f"Q: {prev_query[:50]}..."):
                 st.markdown(prev_response)
-
