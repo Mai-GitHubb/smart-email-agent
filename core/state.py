@@ -7,6 +7,7 @@ import streamlit as st
 from typing import List, Dict, Any, Optional
 from core.models import Email, Task, Event, Reminder
 from datetime import datetime
+import config
 
 
 def initialize_state():
@@ -44,8 +45,9 @@ def initialize_state():
     
     # Application mode: "mock" for mock inbox, "gmail" for Gmail API
     if 'mode' not in st.session_state:
-        st.session_state.mode = "mock"  # "mock" or "gmail"
-    
+        # Uses config.DEFAULT_MODE; default is "mock"
+        st.session_state.mode = getattr(config, "DEFAULT_MODE", "mock")
+
     # Load prompts from persistent storage (data/prompts.json)
     # If file doesn't exist, uses default prompts from core.prompts
     # This is the "Prompt Brain" - user-defined prompts that control LLM behavior
